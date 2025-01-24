@@ -29,7 +29,7 @@ export default function Register() {
         formData.password
       );
       router.push('/login');
-    } catch (err: any) {
+    } catch (err: String | any) {
       setError(err.response?.data?.message || 'Failed to register');
     }
   };

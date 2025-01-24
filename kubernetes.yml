@@ -1,0 +1,168 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: myauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_DATABASE
+          value: testdb_spring
+        - name: MYSQL_ROOT_PASSWORD
+          value: yash
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        livenessProbe:
+          exec:
+            command:
+              - "mysqladmin"
+              - "ping"
+              - "-h"
+              - "localhost"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: mysql-data
+        persistentVolumeClaim:
+          claimName: mysql-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: myauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: myauth-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mysql://mysql:3306/testdb_spring
+        - name: SPRING_DATASOURCE_USERNAME
+          value: root
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: yash
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: update
+        - name: SPRING_JPA_SHOW_SQL
+          value: "true"
+        - name: SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL
+          value: "true"
+        - name: SPRING_JPA_PROPERTIES_HIBERNATE_USE_SQL_COMMENTS
+          value: "true"
+        - name: SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT
+          value: org.hibernate.dialect.MySQLDialect
+        - name: BEZKODER_APP_JWTSECRET
+          value: ======================YashKolte=Spring===========================
+        - name: BEZKODER_APP_JWTEXPIRATIONMS
+          value: "86400000"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: myauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: myauth-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: http://backend:8080
+        volumeMounts:
+        - name: frontend-code
+          mountPath: /app
+        - name: node-modules
+          mountPath: /app/node_modules
+        - name: build-output
+          mountPath: /app/.next
+      volumes:
+      - name: frontend-code
+        emptyDir: {}
+      - name: node-modules
+        emptyDir: {}
+      - name: build-output
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: frontend

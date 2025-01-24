@@ -17,7 +17,7 @@ export default function Login() {
     try {
       await login(username, password);
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: String | any) {
       setError(err.response?.data?.message || 'Failed to login');
     }
   };

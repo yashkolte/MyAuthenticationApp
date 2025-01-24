@@ -1,15 +1,23 @@
-// app/dashboard/page.tsx
+// Frontend: Dashboard.tsx (React Component)
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { authService } from '../../utils/auth';
-import { User } from '../../types/auth';
+
+const authService = {
+  logout: () => {
+    localStorage.removeItem('user');
+  },
+  getCurrentUser: () => {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  },
+};
 
 export default function Dashboard() {
   const [content, setContent] = useState<string>('');
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,8 +48,17 @@ export default function Dashboard() {
           config
         );
         setContent(response.data);
-      } catch (error) {
-        console.error('Error fetching content:', error);
+      } catch (error: any) {
+        if (error.response && error.response.data) {
+          const message = error.response.data.message;
+          if (message === 'Session timeout expired. Please sign in again.') {
+            alert(message);
+            authService.logout();
+            router.push('/login?message=Session timeout expired. Please sign in again.');
+          }
+        } else {
+          console.error('Error fetching content:', error);
+        }
       }
     };
 
